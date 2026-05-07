@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}{{ msg('Weekly Templates','週次テンプレート') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-layout-text-sidebar-reverse"></i> {{ msg('Weekly Templates','週次テンプレート') }}</h4>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTplModal">
+    <i class="bi bi-plus-circle-fill"></i> {{ msg('Add Template','テンプレート追加') }}
+  </button>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-12 col-md-8">
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>{{ msg('Day','曜日') }}</th>
+              <th>{{ msg('Title','タイトル') }}</th>
+              <th>{{ msg('Time','時間') }}</th>
+              <th class="text-center">{{ msg('Auto','自動生成') }}</th>
+              <th>{{ msg('Actions','操作') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in templates %}
+            <tr>
+              <td><span class="badge bg-primary">{{ day_name(t.day_of_week) }}</span></td>
+              <td class="fw-semibold">{{ t.title }}</td>
+              <td class="text-nowrap small">
+                {{ t.start_time.strftime('%H:%M') }}–{{ t.end_time.strftime('%H:%M') }}
+              </td>
+              <td class="text-center">
+                {% if t.is_auto %}
+                  <span class="badge bg-success"><i class="bi bi-magic"></i> ON</span>
+                {% else %}
+                  <span class="badge bg-secondary">OFF</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  {% if current_user.role == 'admin' %}
+                  <button class="btn btn-outline-primary"
+                    onclick="openEditTpl({{ t.id }}, {{ t.day_of_week }}, '{{ t.title }}',
+                      '{{ t.start_time.strftime('%H:%M') }}', '{{ t.end_time.strftime('%H:%M') }}',
+                      {{ 'true' if t.is_auto else 'false' }})">
+                    <i class="bi bi-pencil-fill"></i>
+                  </button>
+                  <form method="post" action="{{ url_for('admin_delete_template', tid=t.id) }}"
+                        onsubmit="return confirm('{{ msg('Delete template?','テンプレートを削除しますか？') }}')">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-outline-danger"><i class="bi bi-trash-fill"></i></button>
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-3">{{ msg('No templates.','テンプレートがありません。') }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate from templates -->
+  <div class="col-12 col-md-4">
+    <div class="card border-success">
+      <div class="card-header bg-success text-white fw-semibold">
+        <i class="bi bi-magic"></i> {{ msg('Generate Events','イベント生成') }}
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">
+          {{ msg('Generate 4 weeks of events from the templates above, starting from the selected week.',
+                 '上記テンプレートから、選択した週を起点に4週間分のイベントを生成します。') }}
+        </p>
+        <form method="post" action="{{ url_for('admin_generate_from_templates') }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">{{ msg('Start Date','開始日') }}</label>
+            <input type="date" name="start_date" class="form-control" required>
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-success">
+              <i class="bi bi-calendar-plus-fill"></i> {{ msg('Generate (4 weeks)','4週間生成') }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Template Modal -->
+<div class="modal fade" id="addTplModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">{{ msg('Add Template','テンプレート追加') }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('admin_add_template') }}">
+        <div class="modal-body">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          {% include '_template_fields.html' %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ msg('Cancel','キャンセル') }}</button>
+          <button type="submit" class="btn btn-primary">{{ msg('Add','追加') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Template Modal -->
+{% if current_user.role == 'admin' %}
+<div class="modal fade" id="editTplModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title">{{ msg('Edit Template','テンプレート編集') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="editTplForm">
+        <div class="modal-body">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          {% include '_template_fields.html' %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ msg('Cancel','キャンセル') }}</button>
+          <button type="submit" class="btn btn-warning">{{ msg('Save','保存') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEditTpl(id, dow, title, start, end, isAuto) {
+  const form = document.getElementById('editTplForm');
+  form.action = '/admin/templates/' + id + '/edit';
+  const s = (n, v) => { const e = form.querySelector('[name="' + n + '"]'); if (e) e.value = v || ''; };
+  s('title', title); s('start_time', start); s('end_time', end);
+  const dowEl = form.querySelector('[name="day_of_week"]');
+  if (dowEl) dowEl.value = dow;
+  const autoEl = form.querySelector('[name="is_auto"]');
+  if (autoEl) autoEl.checked = !!isAuto;
+  new bootstrap.Modal(document.getElementById('editTplModal')).show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,22 @@
+{# Inline attendance quick-update form (used inside today's events) #}
+<form method="post" action="{{ url_for('update_attendance') }}" class="d-flex gap-2 flex-wrap align-items-center">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="event_id" value="{{ ev.id }}">
+  {% set cur_status = att.status if att else 'absent' %}
+  <div class="btn-group btn-group-sm" role="group">
+    {% for val, label, cls in [('present', msg('Present','出席'), 'success'),
+                                ('partial', msg('Partial','部分'), 'warning'),
+                                ('absent',  msg('Absent','欠席'),  'danger')] %}
+    <input type="radio" class="btn-check" name="status"
+           id="s{{ ev.id }}_{{ val }}" value="{{ val }}"
+           {% if cur_status == val %}checked{% endif %}
+           onchange="this.form.submit()">
+    <label class="btn btn-outline-{{ cls }} py-0 px-2" for="s{{ ev.id }}_{{ val }}">
+      {{ label }}
+    </label>
+    {% endfor %}
+  </div>
+  {% if att and att.comment %}
+  <span class="text-muted small"><i class="bi bi-chat-fill"></i> {{ att.comment[:30] }}</span>
+  {% endif %}
+</form>

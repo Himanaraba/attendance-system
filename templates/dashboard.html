@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% block title %}{{ msg('Dashboard','ダッシュボード') }}{% endblock %}
+
+{% block content %}
+{% if auto_created > 0 %}
+<div class="alert alert-success alert-dismissible fade show py-2 mb-2" role="alert">
+  <i class="bi bi-magic"></i>
+  {{ msg(auto_created ~ ' event(s) were auto-generated from templates.',
+         auto_created ~ '件のイベントをテンプレートから自動生成しました。') }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <!-- Stats cards -->
+  <div class="col-6 col-md-3">
+    <div class="card text-center border-primary h-100">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-primary">{{ total_events }}</div>
+        <div class="text-muted small">{{ msg('Total Events','総イベント') }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center border-success h-100">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-success">{{ present }}</div>
+        <div class="text-muted small">{{ msg('Present','出席') }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center border-warning h-100">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-warning">{{ partial }}</div>
+        <div class="text-muted small">{{ msg('Partial','部分参加') }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center border-danger h-100">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-danger">{{ absent }}</div>
+        <div class="text-muted small">{{ msg('Absent','欠席') }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 自分の班バッジ -->
+{% if current_user.positions %}
+<div class="mb-2">
+  {% for p in current_user.positions %}
+  <span class="badge bg-{{ POSITION_COLORS.get(p,'secondary') }} me-1">
+    <i class="bi bi-people-fill"></i> {{ POSITION_LABELS.get(p, p) }}
+  </span>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Attendance rate progress bar -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <span class="fw-semibold">{{ msg('Attendance Rate','出席率') }}</span>
+      <span class="fw-bold fs-5">{{ rate }}%</span>
+    </div>
+    <div class="progress" style="height:20px">
+      <div class="progress-bar bg-success" style="width:{{ [(present / total_events * 100)|round|int, 0]|max if total_events else 0 }}%"></div>
+      <div class="progress-bar bg-warning" style="width:{{ [(partial / total_events * 100)|round|int, 0]|max if total_events else 0 }}%"></div>
+      <div class="progress-bar bg-danger" style="width:{{ [(absent / total_events * 100)|round|int, 0]|max if total_events else 0 }}%"></div>
+    </div>
+    <div class="d-flex gap-3 mt-1 small text-muted">
+      <span><span class="badge bg-success">&nbsp;</span> {{ msg('Present','出席') }}</span>
+      <span><span class="badge bg-warning text-dark">&nbsp;</span> {{ msg('Partial','部分参加') }}</span>
+      <span><span class="badge bg-danger">&nbsp;</span> {{ msg('Absent','欠席') }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- FullCalendar -->
+  <div class="col-12 col-lg-7">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-calendar3"></i> {{ msg('Calendar','カレンダー') }}
+      </div>
+      <div class="card-body p-2">
+        <div id="calendar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Today's events -->
+  <div class="col-12 col-lg-5">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-calendar-day"></i>
+        {{ msg("Today's Events","今日のイベント") }}
+        <span class="badge bg-secondary ms-1">{{ today.strftime('%Y/%m/%d') }}</span>
+      </div>
+      <div class="card-body overflow-auto" style="max-height:350px">
+        {% if today_events %}
+          {% for ev in today_events %}
+          {% set att = att_map.get(ev.id) %}
+          <div class="attendance-card card mb-2 border-2
+            {% if att and att.status == 'present' %}border-success
+            {% elif att and att.status == 'partial' %}border-warning
+            {% elif att and att.status == 'absent' %}border-danger
+            {% else %}border-secondary{% endif %}"
+            id="event-{{ ev.id }}">
+            <div class="card-body p-2">
+              <div class="fw-semibold">{{ ev.title }}</div>
+              <div class="text-muted small mb-2">
+                <i class="bi bi-clock"></i>
+                {{ ev.start_time.strftime('%H:%M') }}–{{ ev.end_time.strftime('%H:%M') }}
+              </div>
+              {% include '_attendance_form.html' %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted text-center py-3">
+            {{ msg('No events today.','今日のイベントはありません。') }}
+          </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent events -->
+<div class="card mt-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">
+      <i class="bi bi-clock-history"></i>
+      {{ msg('Recent Events (last 30 days)','直近30日間のイベント') }}
+    </span>
+    <a href="{{ url_for('export_my_attendance') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-download"></i> CSV
+    </a>
+  </div>
+  <div class="card-body p-0">
+    {% if recent_events %}
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>{{ msg('Date','日付') }}</th>
+            <th>{{ msg('Event','イベント') }}</th>
+            <th>{{ msg('Time','時間') }}</th>
+            <th>{{ msg('Status','ステータス') }}</th>
+            <th>{{ msg('Action','操作') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ev in recent_events %}
+          {% set att = att_map.get(ev.id) %}
+          <tr id="event-{{ ev.id }}">
+            <td class="text-nowrap">{{ ev.date.strftime('%m/%d') }}</td>
+            <td>{{ ev.title }}</td>
+            <td class="text-nowrap small text-muted">
+              {{ ev.start_time.strftime('%H:%M') }}–{{ ev.end_time.strftime('%H:%M') }}
+            </td>
+            <td>
+              {% if att %}
+                <span class="badge
+                  {% if att.status == 'present' %}bg-success
+                  {% elif att.status == 'partial' %}bg-warning text-dark
+                  {% else %}bg-danger{% endif %}">
+                  {{ STATUS_LABEL_JA.get(att.status, att.status) }}
+                </span>
+              {% else %}
+                <span class="badge bg-secondary">{{ msg('–','未記入') }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary py-0 px-1"
+                      onclick="openAttendanceModal({{ ev.id }}, '{{ ev.title }}',
+                        '{{ ev.date }}', '{{ ev.start_time.strftime('%H:%M') }}',
+                        '{{ ev.end_time.strftime('%H:%M') }}',
+                        '{{ att.status if att else 'absent' }}',
+                        `{{ att.comment if att else '' }}`,
+                        '{{ att.partial_start.strftime('%H:%M') if att and att.partial_start else '' }}',
+                        '{{ att.partial_end.strftime('%H:%M') if att and att.partial_end else '' }}')">
+                <i class="bi bi-pencil-fill"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-center py-4">{{ msg('No recent events.','直近イベントなし。') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Attendance edit modal -->
+<div class="modal fade" id="attModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-pencil-fill"></i>
+          <span id="modalTitle"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('update_attendance') }}">
+        <div class="modal-body">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="event_id" id="modalEventId">
+
+          <p class="text-muted small mb-3" id="modalDatetime"></p>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">{{ msg('Status','ステータス') }}</label>
+            <div class="btn-group w-100" role="group">
+              <input type="radio" class="btn-check" name="status" id="sPres" value="present">
+              <label class="btn btn-outline-success" for="sPres">
+                <i class="bi bi-check-circle-fill"></i> {{ msg('Present','出席') }}
+              </label>
+              <input type="radio" class="btn-check" name="status" id="sPart" value="partial">
+              <label class="btn btn-outline-warning" for="sPart">
+                <i class="bi bi-dash-circle-fill"></i> {{ msg('Partial','部分参加') }}
+              </label>
+              <input type="radio" class="btn-check" name="status" id="sAbs" value="absent">
+              <label class="btn btn-outline-danger" for="sAbs">
+                <i class="bi bi-x-circle-fill"></i> {{ msg('Absent','欠席') }}
+              </label>
+            </div>
+          </div>
+
+          <div id="partialSection" class="mb-3 d-none">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small">{{ msg('Partial Start','開始') }}</label>
+                <input type="time" name="partial_start" id="partialStart" class="form-control">
+              </div>
+              <div class="col-6">
+                <label class="form-label small">{{ msg('Partial End','終了') }}</label>
+                <input type="time" name="partial_end" id="partialEnd" class="form-control">
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label fw-semibold">{{ msg('Comment','コメント') }}</label>
+            <textarea name="comment" id="modalComment" class="form-control" rows="2"
+                      placeholder="{{ msg('Optional comment...','備考（任意）') }}"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            {{ msg('Cancel','キャンセル') }}
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> {{ msg('Save','保存') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// FullCalendar
+document.addEventListener('DOMContentLoaded', function () {
+  const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
+    initialView: 'dayGridMonth',
+    locale: '{{ lang }}',
+    height: 'auto',
+    events: '{{ url_for("api_events") }}',
+    eventClick: function (info) {
+      const el = document.getElementById('event-' + info.event.id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('highlight-row');
+        setTimeout(() => el.classList.remove('highlight-row'), 2000);
+      }
+    },
+    eventContent: function (arg) {
+      const status = arg.event.extendedProps.status;
+      const icons = { present: '✓', partial: '◑', absent: '✗' };
+      return {
+        html: `<span class="fc-event-dot"></span> ${icons[status] || ''} ${arg.event.title}`
+      };
+    }
+  });
+  cal.render();
+
+  // Status radio → show/hide partial times
+  document.querySelectorAll('input[name="status"]').forEach(r => {
+    r.addEventListener('change', function () {
+      document.getElementById('partialSection')
+        .classList.toggle('d-none', this.value !== 'partial');
+    });
+  });
+});
+
+function openAttendanceModal(id, title, dt, st, et, status, comment, ps, pe) {
+  document.getElementById('modalEventId').value = id;
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalDatetime').textContent = dt + ' ' + st + '–' + et;
+  document.getElementById('modalComment').value = comment || '';
+  document.getElementById('partialStart').value = ps || '';
+  document.getElementById('partialEnd').value = pe || '';
+
+  const r = document.getElementById(
+    status === 'present' ? 'sPres' : status === 'partial' ? 'sPart' : 'sAbs');
+  if (r) r.checked = true;
+  document.getElementById('partialSection').classList.toggle('d-none', status !== 'partial');
+
+  new bootstrap.Modal(document.getElementById('attModal')).show();
+}
+</script>
+{% endblock %}

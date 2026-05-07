@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% block title %}{{ msg('Full Backup','フルバックアップ') }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-12 col-xl-9">
+
+<h4 class="mb-4">
+  <i class="bi bi-database-fill-down text-danger"></i>
+  {{ msg('Full Backup','フルバックアップ') }}
+</h4>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  {% for label, icon, color, key in [
+    (msg('Users','ユーザー'),        'bi-people-fill',          'primary',  'users'),
+    (msg('Events','イベント'),       'bi-calendar-event-fill',   'info',     'events'),
+    (msg('Attendance','出欠ログ'),   'bi-clipboard-check-fill',  'success',  'attendance'),
+    (msg('Templates','テンプレート'),'bi-layout-text-sidebar-reverse','warning','templates'),
+  ] %}
+  <div class="col-6 col-md-3">
+    <div class="card text-center border-{{ color }}">
+      <div class="card-body py-3">
+        <i class="bi {{ icon }} fs-3 text-{{ color }}"></i>
+        <div class="fs-3 fw-bold mt-1">{{ counts[key] }}</div>
+        <div class="text-muted small">{{ label }}</div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="alert alert-warning d-flex gap-2 align-items-start">
+  <i class="bi bi-shield-exclamation fs-5 flex-shrink-0 mt-1"></i>
+  <div>
+    <strong>{{ msg('Security Notice','セキュリティ注意') }}</strong><br>
+    {{ msg(
+      'Backup files include hashed passwords. Handle them with care and store them securely.',
+      'バックアップファイルにはパスワードのハッシュ値が含まれます。取り扱いに注意し、安全な場所に保管してください。'
+    ) }}
+  </div>
+</div>
+
+<!-- Export options -->
+<div class="row g-4">
+
+  <!-- ZIP (CSV×4) -->
+  <div class="col-12 col-md-4">
+    <div class="card h-100 border-success">
+      <div class="card-header bg-success text-white fw-semibold">
+        <i class="bi bi-file-zip-fill"></i>
+        {{ msg('ZIP (CSV × 4)','ZIP（CSV×4枚）') }}
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-3">
+          {{ msg(
+            'A ZIP archive containing 4 CSV files (users, events, attendance, templates) and a backup info JSON. UTF-8 BOM encoded — opens directly in Excel.',
+            '4枚のCSV（ユーザー・イベント・出欠・テンプレート）と概要JSONをまとめたZIPファイル。UTF-8 BOM付きでExcelでそのまま開けます。'
+          ) }}
+        </p>
+        <ul class="list-unstyled small mb-3">
+          <li><i class="bi bi-file-earmark-text text-success me-1"></i>users.csv</li>
+          <li><i class="bi bi-file-earmark-text text-success me-1"></i>events.csv</li>
+          <li><i class="bi bi-file-earmark-text text-success me-1"></i>attendance.csv</li>
+          <li><i class="bi bi-file-earmark-text text-success me-1"></i>weekly_templates.csv</li>
+          <li><i class="bi bi-file-earmark-code text-info me-1"></i>backup_info.json</li>
+        </ul>
+        <div class="d-grid">
+          <a href="{{ url_for('admin_export_zip') }}" class="btn btn-success">
+            <i class="bi bi-download"></i> {{ msg('Download ZIP','ZIPダウンロード') }}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JSON -->
+  <div class="col-12 col-md-4">
+    <div class="card h-100 border-primary">
+      <div class="card-header bg-primary text-white fw-semibold">
+        <i class="bi bi-filetype-json"></i>
+        {{ msg('JSON (full)','JSON（完全）') }}
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-3">
+          {{ msg(
+            'All data in a single structured JSON file. Ideal for programmatic restore or import into another system.',
+            '全データを1つの構造化JSONにまとめたファイル。プログラムによる復元や別システムへのインポートに適しています。'
+          ) }}
+        </p>
+        <ul class="list-unstyled small mb-3">
+          <li><i class="bi bi-check2 text-primary me-1"></i>{{ msg('Nested structure','階層構造') }}</li>
+          <li><i class="bi bi-check2 text-primary me-1"></i>{{ msg('All relations preserved','リレーション保持') }}</li>
+          <li><i class="bi bi-check2 text-primary me-1"></i>{{ msg('UTF-8 encoded','UTF-8エンコード') }}</li>
+        </ul>
+        <div class="d-grid">
+          <a href="{{ url_for('admin_export_json_full') }}" class="btn btn-primary">
+            <i class="bi bi-download"></i> {{ msg('Download JSON','JSONダウンロード') }}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SQLite -->
+  <div class="col-12 col-md-4">
+    <div class="card h-100 border-danger">
+      <div class="card-header bg-danger text-white fw-semibold">
+        <i class="bi bi-database-fill"></i>
+        {{ msg('SQLite DB file','SQLiteファイル') }}
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-3">
+          {{ msg(
+            'The raw SQLite database file. Most complete — can be directly used to replace the DB for a full restore.',
+            'SQLiteのDBファイルそのもの。最も完全なバックアップで、ファイルを置き換えるだけでフル復元できます。'
+          ) }}
+        </p>
+        <ul class="list-unstyled small mb-3">
+          <li><i class="bi bi-check2 text-danger me-1"></i>{{ msg('Complete data','全データ完全収録') }}</li>
+          <li><i class="bi bi-check2 text-danger me-1"></i>{{ msg('Instant restore','ファイル置換で即復元') }}</li>
+          <li><i class="bi bi-check2 text-danger me-1"></i>{{ msg('Opens with DB Browser for SQLite','DB Browser等で閲覧可') }}</li>
+        </ul>
+        <div class="d-grid">
+          <a href="{{ url_for('admin_export_sqlite_db') }}" class="btn btn-danger">
+            <i class="bi bi-download"></i> {{ msg('Download .db','DBダウンロード') }}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /row -->
+
+<!-- Restore instructions -->
+<div class="card mt-4 border-secondary">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-arrow-counterclockwise"></i>
+    {{ msg('How to restore','復元方法') }}
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-12 col-md-4">
+        <h6 class="fw-bold text-danger"><i class="bi bi-database-fill me-1"></i>{{ msg('SQLite restore (fastest)','SQLite復元（最速）') }}</h6>
+        <ol class="small ps-3 mb-0">
+          <li>{{ msg('Stop the server','サーバーを停止') }}</li>
+          <li>{{ msg('Replace','置き換え：') }} <code>attendance.db</code></li>
+          <li>{{ msg('Restart the server','サーバーを再起動') }}</li>
+        </ol>
+      </div>
+      <div class="col-12 col-md-4">
+        <h6 class="fw-bold text-primary"><i class="bi bi-filetype-json me-1"></i>{{ msg('JSON restore','JSON復元') }}</h6>
+        <ol class="small ps-3 mb-0">
+          <li>{{ msg('Delete the DB file','DBファイルを削除') }}</li>
+          <li><code>flask --app app init_db</code></li>
+          <li>{{ msg('Import via script (see README)','スクリプトでインポート') }}</li>
+        </ol>
+      </div>
+      <div class="col-12 col-md-4">
+        <h6 class="fw-bold text-success"><i class="bi bi-file-zip-fill me-1"></i>{{ msg('CSV reference','CSVはデータ参照用') }}</h6>
+        <p class="small mb-0">
+          {{ msg(
+            'CSV files are designed for human readability and Excel analysis — not for direct DB import.',
+            'CSVはExcelでの確認・分析用です。直接DBに取り込む用途には向いていません。'
+          ) }}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /col -->
+</div><!-- /row -->
+{% endblock %}

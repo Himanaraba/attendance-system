@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% block title %}{{ msg('Event Management','イベント管理') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-calendar-event-fill"></i> {{ msg('Event Management','イベント管理') }}</h4>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEventModal">
+    <i class="bi bi-plus-circle-fill"></i> {{ msg('Add Event','イベント追加') }}
+  </button>
+</div>
+
+<!-- Calendar view -->
+<div class="card mb-3">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-calendar3"></i> {{ msg('Calendar','カレンダー') }}
+  </div>
+  <div class="card-body p-2">
+    <div id="adminCalendar"></div>
+  </div>
+</div>
+
+<!-- Events table -->
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>{{ msg('Date','日付') }}</th>
+            <th>{{ msg('Title','タイトル') }}</th>
+            <th>{{ msg('Start','開始') }}</th>
+            <th>{{ msg('End','終了') }}</th>
+            {% if current_user.role == 'admin' %}
+            <th>{{ msg('Actions','操作') }}</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for ev in events %}
+          <tr id="ev-row-{{ ev.id }}">
+            <td class="text-nowrap">{{ ev.date.strftime('%Y/%m/%d') }}</td>
+            <td class="fw-semibold" id="ev-title-{{ ev.id }}">{{ ev.title }}</td>
+            <td class="text-nowrap">{{ ev.start_time.strftime('%H:%M') }}</td>
+            <td class="text-nowrap">{{ ev.end_time.strftime('%H:%M') }}</td>
+            {% if current_user.role == 'admin' %}
+            <td>
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" title="{{ msg('Edit','編集') }}"
+                  onclick="openEditEvModal({{ ev.id }}, '{{ ev.title }}', '{{ ev.date }}',
+                    '{{ ev.start_time.strftime('%H:%M') }}', '{{ ev.end_time.strftime('%H:%M') }}')">
+                  <i class="bi bi-pencil-fill"></i>
+                </button>
+                <button class="btn btn-outline-secondary" title="{{ msg('Duplicate','複製') }}"
+                  onclick="duplicateEvent({{ ev.id }})">
+                  <i class="bi bi-copy"></i>
+                </button>
+                <form method="post" action="{{ url_for('admin_delete_event', eid=ev.id) }}"
+                      onsubmit="return confirm('{{ msg('Delete this event?','このイベントを削除しますか？') }}')">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline-danger" title="{{ msg('Delete','削除') }}">
+                    <i class="bi bi-trash-fill"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+            {% endif %}
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center text-muted py-4">{{ msg('No events.','イベントなし。') }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add Event Modal -->
+<div class="modal fade" id="addEventModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="bi bi-plus-circle-fill"></i> {{ msg('Add Event','イベント追加') }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('admin_add_event') }}">
+        <div class="modal-body">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          {% include '_event_fields.html' %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ msg('Cancel','キャンセル') }}</button>
+          <button type="submit" class="btn btn-primary">{{ msg('Add','追加') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Event Modal -->
+{% if current_user.role == 'admin' %}
+<div class="modal fade" id="editEventModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title"><i class="bi bi-pencil-fill"></i> {{ msg('Edit Event','イベント編集') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="editEvForm">
+        <div class="modal-body">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          {% include '_event_fields.html' %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ msg('Cancel','キャンセル') }}</button>
+          <button type="submit" class="btn btn-warning">{{ msg('Save','保存') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const cal = new FullCalendar.Calendar(document.getElementById('adminCalendar'), {
+    initialView: 'dayGridMonth',
+    locale: '{{ lang }}',
+    height: 'auto',
+    events: '{{ url_for("api_events") }}',
+    eventClick: function (info) {
+      {% if current_user.role == 'admin' %}
+      openEditEvModal(info.event.id, info.event.title,
+        info.event.startStr.slice(0, 10),
+        info.event.extendedProps.start_time,
+        info.event.extendedProps.end_time);
+      {% endif %}
+    },
+    {% if current_user.role == 'admin' %}
+    eventDrop: function (info) {
+      fetch('/api/events/' + info.event.id + '/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+        body: JSON.stringify({ date: info.event.startStr.slice(0, 10) })
+      }).then(r => r.json()).then(d => { if (d.error) { alert(d.error); info.revert(); } });
+    },
+    editable: true,
+    {% endif %}
+  });
+  cal.render();
+});
+
+function openEditEvModal(id, title, date, start, end) {
+  const form = document.getElementById('editEvForm');
+  form.action = '/admin/events/' + id + '/edit';
+  const s = (n, v) => { const e = form.querySelector('[name="' + n + '"]'); if (e) e.value = v || ''; };
+  s('title', title); s('date', date); s('start_time', start); s('end_time', end);
+  new bootstrap.Modal(document.getElementById('editEventModal')).show();
+}
+
+function duplicateEvent(id) {
+  const dateStr = prompt('{{ msg('Enter target date (YYYY-MM-DD):','複製先の日付 (YYYY-MM-DD):') }}');
+  if (!dateStr) return;
+  fetch('/api/events/' + id + '/duplicate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+    body: JSON.stringify({ date: dateStr })
+  }).then(r => r.json()).then(d => {
+    if (d.id) { location.reload(); }
+    else { alert(d.error || 'Error'); }
+  });
+}
+</script>
+{% endblock %}

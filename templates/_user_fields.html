@@ -1,0 +1,56 @@
+{# Shared form fields for add/edit user modals #}
+<div class="row g-3">
+  <div class="col-md-6">
+    <label class="form-label fw-semibold">{{ msg('Email','メールアドレス') }} <span class="text-danger">*</span></label>
+    <input type="email" name="email" class="form-control" required>
+  </div>
+  <div class="col-md-6">
+    <label class="form-label fw-semibold">{{ msg('Name','名前') }} <span class="text-danger">*</span></label>
+    <input type="text" name="name" class="form-control" required>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label fw-semibold">{{ msg('Grade','学年') }}</label>
+    <input type="number" name="grade" class="form-control" min="1" max="6">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label fw-semibold">{{ msg('Class','クラス') }}</label>
+    <input type="text" name="user_class" class="form-control" maxlength="20">
+  </div>
+  <div class="col-md-6">
+    <label class="form-label fw-semibold">{{ msg('Role','ロール') }}</label>
+    <div class="btn-group w-100" role="group">
+      {% for r, lbl in [('user','User'),('manager','Manager'),('admin','Admin')] %}
+      <input type="radio" class="btn-check" name="role" id="role_{{ r }}_{{ loop.index }}" value="{{ r }}"
+             {% if r == 'user' %}checked{% endif %}>
+      <label class="btn btn-outline-secondary" for="role_{{ r }}_{{ loop.index }}">{{ lbl }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col-12">
+    <label class="form-label fw-semibold">{{ msg('Team / Role','班・役職') }}</label>
+    <div class="d-flex gap-3 flex-wrap">
+      {% for pos, label in [('tech','技術班'),('ops','運営班'),('teacher','顧問')] %}
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="checkbox" name="positions" value="{{ pos }}"
+               id="pos_{{ pos }}_{{ loop.index }}">
+        <label class="form-check-label fw-semibold text-{{ POSITION_COLORS[pos] }}"
+               for="pos_{{ pos }}_{{ loop.index }}">
+          <i class="bi bi-people-fill"></i> {{ label }}
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col-12">
+    <label class="form-label fw-semibold">{{ msg('Auto Absent Days','自動欠席曜日') }}</label>
+    <div class="d-flex gap-2 flex-wrap">
+      {% for i in range(7) %}
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="checkbox" name="auto_absent_days"
+               value="{{ i }}" id="day_{{ i }}_{{ loop.index }}">
+        <label class="form-check-label" for="day_{{ i }}_{{ loop.index }}">{{ day_name(i) }}</label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>

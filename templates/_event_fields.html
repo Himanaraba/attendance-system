@@ -1,0 +1,19 @@
+{# Shared form fields for add/edit event modals #}
+<div class="mb-3">
+  <label class="form-label fw-semibold">{{ msg('Title','タイトル') }} <span class="text-danger">*</span></label>
+  <input type="text" name="title" class="form-control" required maxlength="200">
+</div>
+<div class="mb-3">
+  <label class="form-label fw-semibold">{{ msg('Date','日付') }} <span class="text-danger">*</span></label>
+  <input type="date" name="date" class="form-control" required>
+</div>
+<div class="row g-2">
+  <div class="col-6">
+    <label class="form-label fw-semibold">{{ msg('Start Time','開始時刻') }} <span class="text-danger">*</span></label>
+    <input type="time" name="start_time" class="form-control" required>
+  </div>
+  <div class="col-6">
+    <label class="form-label fw-semibold">{{ msg('End Time','終了時刻') }} <span class="text-danger">*</span></label>
+    <input type="time" name="end_time" class="form-control" required>
+  </div>
+</div>

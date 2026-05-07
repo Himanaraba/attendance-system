@@ -1,0 +1,87 @@
+/* ── Global Font & Size ───────────────────────────────── */
+:root {
+  --bs-font-sans-serif: 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif;
+  --bs-body-font-size: 0.875rem;   /* 14px (Bootstrapデフォルト16px → 少し小さめ) */
+}
+
+body {
+  font-family: var(--bs-font-sans-serif);
+  font-size: var(--bs-body-font-size);
+  min-height: 100vh;
+}
+
+/* 見出しも少し締める */
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.25rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1rem; }
+
+.sticky-col {
+  position: sticky;
+  left: 0;
+  background: var(--bs-body-bg);
+  z-index: 1;
+  border-right: 2px solid var(--bs-border-color);
+}
+
+/* ── Attendance cards ─────────────────────────────────── */
+.attendance-card {
+  transition: box-shadow .2s;
+}
+.attendance-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+
+.highlight-row {
+  animation: highlight 2s ease-out forwards;
+}
+@keyframes highlight {
+  0%   { background-color: rgba(255, 220, 0, 0.4); }
+  100% { background-color: transparent; }
+}
+
+/* ── FullCalendar overrides ───────────────────────────── */
+.fc {
+  font-size: .85rem;
+}
+.fc-event {
+  font-size: .78rem;
+  border-radius: 3px;
+  padding: 1px 3px;
+  cursor: pointer;
+}
+.fc-daygrid-event-dot {
+  display: none;
+}
+
+/* ── Status select ────────────────────────────────────── */
+.att-select {
+  font-size: .8rem;
+  padding: 2px 4px;
+  min-width: 90px;
+}
+
+/* ── Progress bar ─────────────────────────────────────── */
+.progress {
+  border-radius: 8px;
+}
+
+/* ── Dark mode adjustments ────────────────────────────── */
+[data-bs-theme="dark"] .sticky-col {
+  background: var(--bs-body-bg);
+}
+[data-bs-theme="dark"] .table {
+  --bs-table-bg: transparent;
+}
+
+/* ── Navbar ───────────────────────────────────────────── */
+.navbar-brand {
+  letter-spacing: .5px;
+}
+
+/* ── Responsive ───────────────────────────────────────── */
+@media (max-width: 576px) {
+  .fc { font-size: .75rem; }
+  .att-select { font-size: .75rem; min-width: 75px; }
+}

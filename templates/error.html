@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Error {{ code }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column align-items-center justify-content-center py-5 text-center">
+  <div class="display-1 fw-bold text-muted">{{ code }}</div>
+  <h4 class="mt-2">{{ message }}</h4>
+  <a href="{{ url_for('dashboard') if current_user else url_for('login') }}"
+     class="btn btn-primary mt-4">
+    <i class="bi bi-house-fill"></i>
+    {{ msg('Back to Home','ホームに戻る') }}
+  </a>
+</div>
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% block title %}{{ msg('Attendance Management','出欠管理') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h4 class="mb-0"><i class="bi bi-clipboard-check-fill"></i> {{ msg('Attendance','出欠管理') }}</h4>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('admin_export_date', date=sel_date.isoformat()) }}"
+       class="btn btn-sm btn-outline-success">
+      <i class="bi bi-download"></i> {{ msg('Day CSV','日別CSV') }}
+    </a>
+    <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#rangeModal">
+      <i class="bi bi-calendar-range"></i> {{ msg('Range CSV','期間CSV') }}
+    </button>
+  </div>
+</div>
+
+<!-- Date picker + 班フィルタ -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form class="d-flex gap-2 align-items-center flex-wrap" method="get">
+      <label class="fw-semibold me-1">{{ msg('Date','日付') }}:</label>
+      <input type="date" name="date" class="form-control" style="width:auto"
+             value="{{ sel_date.isoformat() }}" onchange="this.form.submit()">
+      <a href="{{ url_for('admin_attendance') }}"
+         class="btn btn-outline-secondary btn-sm">{{ msg('Today','今日') }}</a>
+      <div class="ms-auto d-flex gap-1">
+        <button type="button" class="btn btn-sm btn-outline-secondary"
+                onclick="filterTeam('')">全員</button>
+        <button type="button" class="btn btn-sm btn-primary"
+                onclick="filterTeam('tech')">技術班</button>
+        <button type="button" class="btn btn-sm btn-success"
+                onclick="filterTeam('ops')">運営班</button>
+        <button type="button" class="btn btn-sm btn-warning text-dark"
+                onclick="filterTeam('teacher')">顧問</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if events %}
+<!-- Attendance grid -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">{{ sel_date.strftime('%Y年%m月%d日') if lang == 'ja' else sel_date.strftime('%B %d, %Y') }}</span>
+    <button class="btn btn-sm btn-primary" onclick="saveAll()">
+      <i class="bi bi-check-all"></i> {{ msg('Save All','一括保存') }}
+    </button>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="sticky-col">{{ msg('Name','名前') }}</th>
+            {% for ev in events %}
+            <th class="text-center" style="min-width:130px">
+              <div class="fw-semibold small">{{ ev.title }}</div>
+              <div class="text-muted" style="font-size:.75rem">
+                {{ ev.start_time.strftime('%H:%M') }}–{{ ev.end_time.strftime('%H:%M') }}
+              </div>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td class="fw-semibold sticky-col"
+                data-positions="{{ u.positions|join(',') }}">
+              {{ u.name }}
+              <div class="mt-1">
+                {% for p in u.positions %}
+                <span class="badge bg-{{ POSITION_COLORS.get(p,'secondary') }} me-1" style="font-size:.65rem">
+                  {{ POSITION_LABELS.get(p, p) }}
+                </span>
+                {% endfor %}
+              </div>
+              {% if u.grade %}<div class="text-muted" style="font-size:.7rem">{{ u.grade }}年{{ u.user_class or '' }}</div>{% endif %}
+            </td>
+            {% for ev in events %}
+            {% set att = att_map.get((u.id, ev.id)) %}
+            {% set cur = att.status if att else 'absent' %}
+            <td class="text-center p-1">
+              <select class="form-select form-select-sm att-select
+                {% if cur == 'present' %}border-success text-success
+                {% elif cur == 'partial' %}border-warning text-warning
+                {% else %}border-danger text-danger{% endif %}"
+                data-uid="{{ u.id }}" data-eid="{{ ev.id }}"
+                onchange="updateSelectStyle(this)">
+                <option value="present" {% if cur=='present' %}selected{% endif %}>
+                  {{ msg('Present','出席') }}
+                </option>
+                <option value="partial" {% if cur=='partial' %}selected{% endif %}>
+                  {{ msg('Partial','部分参加') }}
+                </option>
+                <option value="absent" {% if cur=='absent' %}selected{% endif %}>
+                  {{ msg('Absent','欠席') }}
+                </option>
+              </select>
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+  {{ msg('No events on this date.','この日にイベントはありません。') }}
+</div>
+{% endif %}
+
+<!-- Range CSV Modal -->
+<div class="modal fade" id="rangeModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ msg('Export Range CSV','期間CSV出力') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="get" action="{{ url_for('admin_export_range') }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">{{ msg('From','開始日') }}</label>
+              <input type="date" name="from" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">{{ msg('To','終了日') }}</label>
+              <input type="date" name="to" class="form-control" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ msg('Cancel','キャンセル') }}</button>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-download"></i> {{ msg('Export','エクスポート') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const today = '{{ sel_date.isoformat() }}';
+
+function updateSelectStyle(el) {
+  el.className = el.className.replace(/border-\S+|text-\S+/g, '').trim();
+  const v = el.value;
+  if (v === 'present')  { el.classList.add('border-success', 'text-success'); }
+  else if (v === 'partial') { el.classList.add('border-warning', 'text-warning'); }
+  else                       { el.classList.add('border-danger',  'text-danger');  }
+}
+
+function filterTeam(pos) {
+  document.querySelectorAll('tbody tr').forEach(function (row) {
+    if (!pos) { row.style.display = ''; return; }
+    const td = row.querySelector('[data-positions]');
+    const positions = td ? td.dataset.positions.split(',') : [];
+    row.style.display = positions.includes(pos) ? '' : 'none';
+  });
+}
+
+async function saveAll() {
+  const items = [];
+  document.querySelectorAll('.att-select').forEach(sel => {
+    items.push({
+      user_id:  parseInt(sel.dataset.uid),
+      event_id: parseInt(sel.dataset.eid),
+      status:   sel.value,
+    });
+  });
+  try {
+    const r = await fetch('{{ url_for("admin_bulk_update") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+      body: JSON.stringify(items),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const msg = '{{ msg("Saved.","保存しました。") }}';
+      const toast = document.createElement('div');
+      toast.className = 'position-fixed bottom-0 end-0 m-3 alert alert-success fade show';
+      toast.style.zIndex = 9999;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2500);
+    } else { alert(d.error || 'Error'); }
+  } catch (e) { alert('Network error'); }
+}
+</script>
+{% endblock %}

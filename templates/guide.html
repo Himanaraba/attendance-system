@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}{{ msg('User Guide','使い方ガイド') }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-9">
+    <h3 class="mb-4"><i class="bi bi-question-circle-fill text-primary"></i>
+      {{ msg('User Guide','使い方ガイド') }}
+    </h3>
+
+    <div class="accordion" id="guideAccordion">
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#g1">
+            <i class="bi bi-box-arrow-in-right me-2 text-primary"></i>
+            {{ msg('Login & Password','ログイン・パスワード') }}
+          </button>
+        </h2>
+        <div id="g1" class="accordion-collapse collapse show" data-bs-parent="#guideAccordion">
+          <div class="accordion-body">
+            <ul>
+              <li>{{ msg('Use your email and password to log in.','メールアドレスとパスワードでログインします。') }}</li>
+              <li>{{ msg('If you received a temporary password, you will be asked to change it on first login.',
+                         '一時パスワードが発行された場合、初回ログイン時にパスワード変更を求められます。') }}</li>
+              <li>{{ msg('After 5 failed login attempts, your account will be locked for 30 minutes.',
+                         'ログインに5回失敗するとアカウントが30分ロックされます。') }}</li>
+              <li>{{ msg('Your session stays active for 30 days.','セッションは30日間維持されます。') }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g2">
+            <i class="bi bi-house-fill me-2 text-success"></i>
+            {{ msg('Dashboard','ダッシュボード') }}
+          </button>
+        </h2>
+        <div id="g2" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+          <div class="accordion-body">
+            <ul>
+              <li>{{ msg('The top cards show your attendance statistics.','上部のカードに出席統計が表示されます。') }}</li>
+              <li>{{ msg('The progress bar shows your overall attendance rate.',
+                         'プログレスバーで出席率を確認できます。') }}</li>
+              <li>{{ msg('The calendar shows all events color-coded by your attendance status:',
+                         'カレンダーには出欠ステータスに応じた色でイベントが表示されます：') }}
+                <ul>
+                  <li><span class="badge bg-success">{{ msg('Green = Present','緑 = 出席') }}</span></li>
+                  <li><span class="badge bg-warning text-dark">{{ msg('Yellow = Partial','黄 = 部分参加') }}</span></li>
+                  <li><span class="badge bg-danger">{{ msg('Red = Absent','赤 = 欠席') }}</span></li>
+                </ul>
+              </li>
+              <li>{{ msg('Click a calendar event to highlight it in the list.',
+                         'カレンダーのイベントをクリックするとリスト内でハイライトされます。') }}</li>
+              <li>{{ msg('Click the pencil icon in the table to edit attendance with details.',
+                         'テーブルの鉛筆アイコンでコメント・部分参加時刻などを入力できます。') }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g3">
+            <i class="bi bi-download me-2 text-info"></i>
+            {{ msg('CSV Export','CSVエクスポート') }}
+          </button>
+        </h2>
+        <div id="g3" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+          <div class="accordion-body">
+            <ul>
+              <li>{{ msg('From the user menu (top right), you can download your own attendance as CSV.',
+                         'ユーザーメニュー（右上）から自分の出欠データをCSVでダウンロードできます。') }}</li>
+              <li>{{ msg('Admins/managers can export day-by-day or range CSVs from the attendance page.',
+                         'admin/manager は出欠管理ページから日別・期間別CSVをエクスポートできます。') }}</li>
+              <li>{{ msg('All CSVs are UTF-8 BOM encoded for Excel compatibility.',
+                         '全CSVはExcel対応のUTF-8 BOM形式で出力されます。') }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {% if current_user.role in ('manager','admin') %}
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g4">
+            <i class="bi bi-gear-fill me-2 text-warning"></i>
+            {{ msg('Admin Features','管理者向け機能') }}
+          </button>
+        </h2>
+        <div id="g4" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+          <div class="accordion-body">
+            <ul>
+              <li><strong>{{ msg('User Management','ユーザー管理') }}</strong>: {{ msg('Add, edit, delete users. Search by name or filter by position.',
+                'ユーザーの追加・編集・削除。名前検索や役職フィルタが利用可能。') }}</li>
+              <li><strong>{{ msg('Event Management','イベント管理') }}</strong>: {{ msg('Create, edit, delete, and duplicate events. Drag events in the calendar to move them.',
+                'イベントの作成・編集・削除・複製。カレンダー上でドラッグして日付変更も可能。') }}</li>
+              <li><strong>{{ msg('Attendance Management','出欠管理') }}</strong>: {{ msg('View and bulk-update attendance for all users on a given date.',
+                '日付ごとに全ユーザーの出欠を一括確認・更新できます。') }}</li>
+              <li><strong>{{ msg('Weekly Templates','週次テンプレート') }}</strong>: {{ msg('Define recurring events by day of week, then generate 4 weeks at once.',
+                '曜日ベースの定例イベントを登録し、4週間分をまとめて生成できます。重複は自動スキップ。') }}</li>
+              <li><strong>{{ msg('Password Reset','パスワードリセット') }}</strong>: {{ msg('Issue a temporary password for any user from the User Management page.',
+                'ユーザー管理ページから任意ユーザーの一時パスワードを発行できます。') }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+    </div><!-- accordion -->
+
+    <div class="card mt-4 border-secondary">
+      <div class="card-body">
+        <h6 class="fw-bold"><i class="bi bi-moon-stars-fill me-1"></i> {{ msg('Dark Mode','ダークモード') }}</h6>
+        <p class="mb-0 small">{{ msg('Click the moon icon in the top navigation bar to toggle dark mode. Your preference is saved in the browser.',
+          '上部ナビバーの月アイコンでダークモードを切り替えられます。設定はブラウザに保存されます。') }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

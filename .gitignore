@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Flask / DB
+instance/
+attendance.db
+*.db-journal
+
+# Secrets - 絶対にコミットしない
+.env
+.env.*
+.jwt_secret
+secrets.json
+
+# Backups
+backups/
+*.bak
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

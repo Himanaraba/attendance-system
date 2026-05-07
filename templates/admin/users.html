@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}{{ msg('User Management','ユーザー管理') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-people-fill"></i> {{ msg('User Management','ユーザー管理') }}</h4>
+  {% if current_user.role == 'admin' %}
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+    <i class="bi bi-person-plus-fill"></i> {{ msg('Add User','ユーザー追加') }}
+  </button>
+  {% endif %}
+</div>
+
+<!-- Search & filter -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form class="row g-2 align-items-center" method="get">
+      <div class="col-12 col-md-5">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" name="q" class="form-control" placeholder="{{ msg('Search name…','名前で検索…') }}"
+                 value="{{ q }}">
+        </div>
+      </div>
+      <div class="col-auto">
+        <select name="position" class="form-select">
+          <option value="">{{ msg('All','全員') }}</option>
+          <option value="tech"    {% if pos_filter=='tech'    %}selected{% endif %}>技術班</option>
+          <option value="ops"     {% if pos_filter=='ops'     %}selected{% endif %}>運営班</option>
+          <option value="teacher" {% if pos_filter=='teacher' %}selected{% endif %}>顧問</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-outline-primary">{{ msg('Filter','絞込') }}</button>
+        <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary">{{ msg('Clear','クリア') }}</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>{{ msg('Name','名前') }}</th>
+            <th>{{ msg('Email','メール') }}</th>
+            <th>{{ msg('Grade/Class','学年/クラス') }}</th>
+            <th>{{ msg('Role','ロール') }}</th>
+            <th>{{ msg('Positions','役職') }}</th>
+            <th>{{ msg('Actions','操作') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td class="fw-semibold">
+              {{ u.name }}
+              {% if u.must_change_password %}
+              <span class="badge bg-warning text-dark ms-1" title="{{ msg('Must change password','PW変更要') }}">
+                <i class="bi bi-key-fill"></i>
+              </span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">{{ u.email }}</td>
+            <td class="small">
+              {% if u.grade %}{{ u.grade }}年{% endif %}
+              {% if u.user_class %} {{ u.user_class }}{% endif %}
+            </td>
+            <td>
+              <span class="badge {% if u.role == 'admin' %}bg-danger{% elif u.role == 'manager' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                {{ u.role }}
+              </span>
+            </td>
+            <td class="small">
+              {% for p in u.positions %}
+              <span class="badge bg-{{ POSITION_COLORS.get(p,'secondary') }}">
+                {{ POSITION_LABELS.get(p, p) }}
+              </span>
+              {% endfor %}
+            </td>
+            <td>
+              <div class="btn-group btn-group-sm">
+                {% if current_user.role == 'admin' %}
+                <button class="btn btn-outline-primary" title="{{ msg('Edit','編集') }}"
+                  onclick="openEditModal({{ u.id }}, '{{ u.email }}', '{{ u.name }}',
+                    {{ u.grade or 'null' }}, '{{ u.user_class or '' }}',
+                    '{{ u.role }}', {{ u.positions|tojson }}, {{ u.auto_absent_days|tojson }})">
+                  <i class="bi bi-pencil-fill"></i>
+                </button>
+                {% endif %}
+                <form method="post" action="{{ url_for('admin_reset_password', uid=u.id) }}"
+                      onsubmit="return confirm('{{ msg('Reset password?','パスワードをリセットしますか？') }}')">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline-warning" title="{{ msg('Reset PW','PW リセット') }}">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </button>
+                </form>
+                {% if current_user.role == 'admin' %}
+                <form method="post" action="{{ url_for('admin_delete_user', uid=u.id) }}"
+                      onsubmit="return confirm('{{ msg('Deactivate this user?','このユーザーを無効にしますか？') }}')">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline-danger" title="{{ msg('Delete','削除') }}">
+                    <i class="bi bi-person-x-fill"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">{{ msg('No users found.','ユーザーが見つかりません。') }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add User Modal -->
+{% if current_user.role == 'admin' %}
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="bi bi-person-plus-fill"></i> {{ msg('Add User','ユーザー追加') }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('admin_add_user') }}">
+        <div class="modal-body">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          {% include '_user_fields.html' %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ msg('Cancel','キャンセル') }}</button>
+          <button type="submit" class="btn btn-primary">{{ msg('Add','追加する') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title"><i class="bi bi-pencil-fill"></i> {{ msg('Edit User','ユーザー編集') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="editForm">
+        <div class="modal-body">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          {% include '_user_fields.html' with context %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ msg('Cancel','キャンセル') }}</button>
+          <button type="submit" class="btn btn-warning">{{ msg('Save','保存') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEditModal(id, email, name, grade, userClass, role, positions, absentDays) {
+  const form = document.getElementById('editForm');
+  form.action = '/admin/users/' + id + '/edit';
+
+  const set = (n, v) => { const el = form.querySelector('[name="' + n + '"]'); if (el) el.value = v || ''; };
+  set('email', email);
+  set('name', name);
+  set('grade', grade || '');
+  set('user_class', userClass);
+
+  form.querySelectorAll('[name="role"]').forEach(r => r.checked = (r.value === role));
+  form.querySelectorAll('[name="positions"]').forEach(cb => {
+    cb.checked = positions.includes(cb.value);
+  });
+  form.querySelectorAll('[name="auto_absent_days"]').forEach(cb => {
+    cb.checked = absentDays.includes(parseInt(cb.value));
+  });
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+</script>
+{% endblock %}
