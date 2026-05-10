@@ -1,7 +1,7 @@
 {
+  "release_notes": "iOS 26風 Liquid Glass デザイン採用 (GlassBottomBar / GlassAppBar)",
   "min_supported_version": "1.2.1",
-  "latest_version": "1.4.0",
-  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.4.0/app-release.apk",
-  "release_notes": "UI大幅刷新 / ホームから1タップ出欠登録 / カレンダー出欠色ドット / タイムピッカー / ユーザー検索+班フィルタ / 丸めデザイン",
-  "released_at": "2026-05-10T19:21:27Z"
+  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.5.0/app-release.apk",
+  "released_at": "2026-05-10T19:31:05Z",
+  "latest_version": "1.5.0"
 }
