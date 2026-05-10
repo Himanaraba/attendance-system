@@ -1,7 +1,7 @@
 {
-  "min_supported_version": "1.2.0",
-  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.2.0/app-release.apk",
-  "latest_version": "1.2.0",
-  "released_at": "2026-05-10T16:37:44Z",
-  "release_notes": "学年を M1〜OB 形式に変更（任意項目）"
+  "latest_version": "1.2.1",
+  "released_at": "2026-05-10T16:43:07Z",
+  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.2.1/app-release.apk",
+  "min_supported_version": "1.2.1",
+  "release_notes": "OTAダウンロード処理修正"
 }
