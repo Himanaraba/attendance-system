@@ -69,12 +69,12 @@
   <div class="col-12 col-md-4">
     <div class="card border-success">
       <div class="card-header bg-success text-white fw-semibold">
-        <i class="bi bi-magic"></i> {{ msg('Generate Events','イベント生成') }}
+        <i class="bi bi-magic"></i> {{ msg('Generate Events','活動生成') }}
       </div>
       <div class="card-body">
         <p class="text-muted small">
           {{ msg('Generate 4 weeks of events from the templates above, starting from the selected week.',
-                 '上記テンプレートから、選択した週を起点に4週間分のイベントを生成します。') }}
+                 '上記テンプレートから、選択した週を起点に4週間分の活動を生成します。') }}
         </p>
         <form method="post" action="{{ url_for('admin_generate_from_templates') }}">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">

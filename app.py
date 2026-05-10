@@ -107,7 +107,7 @@ def safe_redirect(url):
 
 
 def auto_generate_events():
-    """自動生成フラグONのテンプレートから今日〜5週先までイベントを生成する。"""
+    """自動生成フラグONのテンプレートから今日〜5週先まで活動を生成する。"""
     templates = WeeklyTemplate.query.filter_by(is_auto=True).all()
     if not templates:
         return 0
@@ -403,7 +403,7 @@ def export_my_attendance():
 
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(['日付', 'イベント', '開始', '終了', 'ステータス',
+    w.writerow(['日付', '活動', '開始', '終了', 'ステータス',
                 '部分参加開始', '部分参加終了', 'コメント'])
     for att, ev in rows:
         w.writerow([
@@ -567,7 +567,7 @@ def admin_add_event():
 
     db.session.add(Event(title=title, date=d, start_time=st, end_time=et))
     db.session.commit()
-    flash(msg('Event added.', 'イベントを追加しました。'), 'success')
+    flash(msg('Event added.', '活動を追加しました。'), 'success')
     return redirect(url_for('admin_events'))
 
 
@@ -596,7 +596,7 @@ def admin_edit_event(eid):
 
     event.title, event.date, event.start_time, event.end_time = title, d, st, et
     db.session.commit()
-    flash(msg('Event updated.', 'イベントを更新しました。'), 'success')
+    flash(msg('Event updated.', '活動を更新しました。'), 'success')
     return redirect(url_for('admin_events'))
 
 
@@ -609,7 +609,7 @@ def admin_delete_event(eid):
         abort(404)
     db.session.delete(event)
     db.session.commit()
-    flash(msg('Event deleted.', 'イベントを削除しました。'), 'success')
+    flash(msg('Event deleted.', '活動を削除しました。'), 'success')
     return redirect(url_for('admin_events'))
 
 # ── Admin: Attendance View ─────────────────────────────────────────────────────
@@ -730,7 +730,7 @@ def admin_export_range():
 
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(['日付', 'イベント', '開始', '終了', '名前', '学年', 'クラス',
+    w.writerow(['日付', '活動', '開始', '終了', '名前', '学年', 'クラス',
                 'ステータス', '部分参加開始', '部分参加終了', 'コメント'])
     for att, ev, u in rows:
         w.writerow([

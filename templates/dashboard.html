@@ -6,7 +6,7 @@
 <div class="alert alert-success alert-dismissible fade show py-2 mb-2" role="alert">
   <i class="bi bi-magic"></i>
   {{ msg(auto_created ~ ' event(s) were auto-generated from templates.',
-         auto_created ~ '件のイベントをテンプレートから自動生成しました。') }}
+         auto_created ~ '件の活動をテンプレートから自動生成しました。') }}
   <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 {% endif %}
@@ -17,7 +17,7 @@
     <div class="card text-center border-primary h-100">
       <div class="card-body py-3">
         <div class="fs-2 fw-bold text-primary">{{ total_events }}</div>
-        <div class="text-muted small">{{ msg('Total Events','総イベント') }}</div>
+        <div class="text-muted small">{{ msg('Total Events','総活動') }}</div>
       </div>
     </div>
   </div>
@@ -96,7 +96,7 @@
     <div class="card h-100">
       <div class="card-header fw-semibold">
         <i class="bi bi-calendar-day"></i>
-        {{ msg("Today's Events","今日のイベント") }}
+        {{ msg("Today's Events","今日の活動") }}
         <span class="badge bg-secondary ms-1">{{ today.strftime('%Y/%m/%d') }}</span>
       </div>
       <div class="card-body overflow-auto" style="max-height:350px">
@@ -121,7 +121,7 @@
           {% endfor %}
         {% else %}
           <p class="text-muted text-center py-3">
-            {{ msg('No events today.','今日のイベントはありません。') }}
+            {{ msg('No events today.','今日の活動はありません。') }}
           </p>
         {% endif %}
       </div>
@@ -134,7 +134,7 @@
   <div class="card-header d-flex justify-content-between align-items-center">
     <span class="fw-semibold">
       <i class="bi bi-clock-history"></i>
-      {{ msg('Recent Events (last 30 days)','直近30日間のイベント') }}
+      {{ msg('Recent Events (last 30 days)','直近30日間の活動') }}
     </span>
     <a href="{{ url_for('export_my_attendance') }}" class="btn btn-sm btn-outline-secondary">
       <i class="bi bi-download"></i> CSV
@@ -147,7 +147,7 @@
         <thead class="table-light">
           <tr>
             <th>{{ msg('Date','日付') }}</th>
-            <th>{{ msg('Event','イベント') }}</th>
+            <th>{{ msg('Event','活動') }}</th>
             <th>{{ msg('Time','時間') }}</th>
             <th>{{ msg('Status','ステータス') }}</th>
             <th>{{ msg('Action','操作') }}</th>
@@ -192,7 +192,7 @@
       </table>
     </div>
     {% else %}
-    <p class="text-muted text-center py-4">{{ msg('No recent events.','直近イベントなし。') }}</p>
+    <p class="text-muted text-center py-4">{{ msg('No recent events.','直近活動なし。') }}</p>
     {% endif %}
   </div>
 </div>

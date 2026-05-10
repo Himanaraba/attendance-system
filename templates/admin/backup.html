@@ -14,7 +14,7 @@
 <div class="row g-3 mb-4">
   {% for label, icon, color, key in [
     (msg('Users','ユーザー'),        'bi-people-fill',          'primary',  'users'),
-    (msg('Events','イベント'),       'bi-calendar-event-fill',   'info',     'events'),
+    (msg('Events','活動'),       'bi-calendar-event-fill',   'info',     'events'),
     (msg('Attendance','出欠ログ'),   'bi-clipboard-check-fill',  'success',  'attendance'),
     (msg('Templates','テンプレート'),'bi-layout-text-sidebar-reverse','warning','templates'),
   ] %}
@@ -55,7 +55,7 @@
         <p class="small text-muted mb-3">
           {{ msg(
             'A ZIP archive containing 4 CSV files (users, events, attendance, templates) and a backup info JSON. UTF-8 BOM encoded — opens directly in Excel.',
-            '4枚のCSV（ユーザー・イベント・出欠・テンプレート）と概要JSONをまとめたZIPファイル。UTF-8 BOM付きでExcelでそのまま開けます。'
+            '4枚のCSV（ユーザー・活動・出欠・テンプレート）と概要JSONをまとめたZIPファイル。UTF-8 BOM付きでExcelでそのまま開けます。'
           ) }}
         </p>
         <ul class="list-unstyled small mb-3">

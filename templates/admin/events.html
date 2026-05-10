@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
-{% block title %}{{ msg('Event Management','イベント管理') }}{% endblock %}
+{% block title %}{{ msg('Event Management','活動管理') }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0"><i class="bi bi-calendar-event-fill"></i> {{ msg('Event Management','イベント管理') }}</h4>
+  <h4 class="mb-0"><i class="bi bi-calendar-event-fill"></i> {{ msg('Event Management','活動管理') }}</h4>
   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEventModal">
-    <i class="bi bi-plus-circle-fill"></i> {{ msg('Add Event','イベント追加') }}
+    <i class="bi bi-plus-circle-fill"></i> {{ msg('Add Event','活動追加') }}
   </button>
 </div>
 
@@ -55,7 +55,7 @@
                   <i class="bi bi-copy"></i>
                 </button>
                 <form method="post" action="{{ url_for('admin_delete_event', eid=ev.id) }}"
-                      onsubmit="return confirm('{{ msg('Delete this event?','このイベントを削除しますか？') }}')">
+                      onsubmit="return confirm('{{ msg('Delete this event?','この活動を削除しますか？') }}')">
                   <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-outline-danger" title="{{ msg('Delete','削除') }}">
                     <i class="bi bi-trash-fill"></i>
@@ -66,7 +66,7 @@
             {% endif %}
           </tr>
           {% else %}
-          <tr><td colspan="5" class="text-center text-muted py-4">{{ msg('No events.','イベントなし。') }}</td></tr>
+          <tr><td colspan="5" class="text-center text-muted py-4">{{ msg('No events.','活動なし。') }}</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -79,7 +79,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title"><i class="bi bi-plus-circle-fill"></i> {{ msg('Add Event','イベント追加') }}</h5>
+        <h5 class="modal-title"><i class="bi bi-plus-circle-fill"></i> {{ msg('Add Event','活動追加') }}</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form method="post" action="{{ url_for('admin_add_event') }}">
@@ -102,7 +102,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-warning text-dark">
-        <h5 class="modal-title"><i class="bi bi-pencil-fill"></i> {{ msg('Edit Event','イベント編集') }}</h5>
+        <h5 class="modal-title"><i class="bi bi-pencil-fill"></i> {{ msg('Edit Event','活動編集') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form method="post" id="editEvForm">
