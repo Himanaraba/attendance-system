@@ -101,6 +101,21 @@ class Attendance(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'event_id'),)
 
 
+class AuditLog(db.Model):
+    __tablename__ = 'audit_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    action = db.Column(db.String(50), nullable=False)  # login.success, login.fail, user.add, etc
+    target_type = db.Column(db.String(30), nullable=True)  # user, event, attendance...
+    target_id = db.Column(db.Integer, nullable=True)
+    ip = db.Column(db.String(45), nullable=True)  # IPv4/IPv6
+    user_agent = db.Column(db.String(255), nullable=True)
+    detail = db.Column(db.Text, nullable=True)  # 任意の追加情報 (JSON文字列推奨)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    user = db.relationship('User', backref='audit_logs', lazy=True)
+
+
 class WeeklyTemplate(db.Model):
     __tablename__ = 'weekly_templates'
     id = db.Column(db.Integer, primary_key=True)

@@ -19,9 +19,12 @@ from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     create_refresh_token, get_jwt_identity, verify_jwt_in_request,
 )
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from sqlalchemy import text
-from models import db, User, Event, Attendance, WeeklyTemplate
+from models import db, User, Event, Attendance, WeeklyTemplate, AuditLog
 import discord_service
+import security
 
 # ── App & Config ───────────────────────────────────────────────────────────────
 
@@ -54,6 +57,20 @@ JWTManager(app)
 
 # CORS: /api/v1/* のみ Flutter からのアクセスを許可
 CORS(app, resources={r'/api/v1/*': {'origins': '*'}})
+
+# レートリミット (IP単位)。proxy(Traefik)経由のため X-Forwarded-For を尊重する
+def _client_ip():
+    fwd = request.headers.get('X-Forwarded-For', '')
+    if fwd:
+        return fwd.split(',')[0].strip()
+    return get_remote_address()
+
+limiter = Limiter(
+    key_func=_client_ip,
+    app=app,
+    default_limits=[],
+    storage_uri='memory://',  # 単一インスタンス前提。複数Worker時は redis に切替
+)
 
 MAX_ATTEMPTS = int(os.environ.get('MAX_LOGIN_ATTEMPTS', '5'))
 LOCKOUT_MINUTES = int(os.environ.get('LOCKOUT_MINUTES', '30'))
@@ -150,6 +167,11 @@ def apply_migrations():
     _safe_add_column('events', 'description', 'TEXT DEFAULT ""')
     _safe_add_column('users', 'discord_id', 'VARCHAR(32)')
     _safe_add_column('users', 'birthday', 'DATE')
+    # AuditLog テーブル作成 (新規)
+    try:
+        db.create_all()
+    except Exception:
+        db.session.rollback()
     # 既存の整数 grade を NULL にクリア (運用者が新形式 M1〜OB で再設定)
     try:
         db.session.execute(text(
@@ -222,6 +244,7 @@ def login_required(role=None):
 # ── Auth routes ────────────────────────────────────────────────────────────────
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['POST'])
 def login():
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
@@ -237,6 +260,8 @@ def login():
         if user and user.is_locked():
             flash(msg('Account locked. Try again later.',
                       'アカウントがロックされています。しばらく後にお試しください。'), 'danger')
+            security.audit('login.locked', user=user, detail={'email': email})
+            security.notify_login(user, success=False, reason='アカウントロック中')
             return render_template('login.html', next=next_url)
 
         if user and user.check_password(password):
@@ -245,6 +270,8 @@ def login():
             db.session.commit()
             session.permanent = True
             session['user_id'] = user.id
+            security.audit('login.success', user=user)
+            security.notify_login(user, success=True)
             if user.must_change_password:
                 return redirect(url_for('onboarding'))
             dest = next_url if (next_url and safe_redirect(next_url)) else url_for('dashboard')
@@ -261,9 +288,12 @@ def login():
                     flash(msg(f'Invalid credentials. {rem} attempts left.',
                               f'メールまたはパスワードが違います。残り{rem}回。'), 'danger')
                 db.session.commit()
+                security.audit('login.fail', user=user, detail={'remaining': MAX_ATTEMPTS - user.failed_login_attempts})
+                security.notify_login(user, success=False, reason='パスワード間違い')
             else:
                 flash(msg('Invalid credentials.',
                           'メールアドレスまたはパスワードが違います。'), 'danger')
+                security.audit('login.unknown_email', detail={'email': email})
 
     return render_template('login.html', next=request.args.get('next', ''))
 
@@ -287,17 +317,19 @@ def change_password():
 
         if not user.check_password(current_pw):
             flash(msg('Current password is incorrect.', '現在のパスワードが違います。'), 'danger')
-        elif len(new_pw) < 8:
-            flash(msg('Password must be at least 8 characters.',
-                      'パスワードは8文字以上必要です。'), 'danger')
         elif new_pw != confirm_pw:
             flash(msg('Passwords do not match.', 'パスワードが一致しません。'), 'danger')
         else:
-            user.set_password(new_pw)
-            user.must_change_password = False
-            db.session.commit()
-            flash(msg('Password changed successfully.', 'パスワードを変更しました。'), 'success')
-            return redirect(url_for('dashboard'))
+            err = security.check_password_strength(new_pw, user_email=user.email)
+            if err:
+                flash(err, 'danger')
+            else:
+                user.set_password(new_pw)
+                user.must_change_password = False
+                db.session.commit()
+                security.audit('password.change', user=user)
+                flash(msg('Password changed successfully.', 'パスワードを変更しました。'), 'success')
+                return redirect(url_for('dashboard'))
 
     return render_template('change_password.html')
 
@@ -315,13 +347,13 @@ def onboarding():
         validate_csrf()
         new_pw     = request.form.get('new_password', '')
         confirm_pw = request.form.get('confirm_password', '')
-        if len(new_pw) < 8:
-            flash(msg('Password must be at least 8 characters.',
-                      'パスワードは8文字以上にしてください。'), 'danger')
-            return redirect(url_for('onboarding'))
         if new_pw != confirm_pw:
             flash(msg('Passwords do not match.',
                       'パスワードが一致しません。'), 'danger')
+            return redirect(url_for('onboarding'))
+        err = security.check_password_strength(new_pw, user_email=user.email)
+        if err:
+            flash(err, 'danger')
             return redirect(url_for('onboarding'))
 
         user.set_password(new_pw)
@@ -347,6 +379,7 @@ def onboarding():
             user.discord_id = d_in
 
         db.session.commit()
+        security.audit('onboarding.complete', user=user)
         flash(msg('Setup complete. Welcome!', 'セットアップ完了。ようこそ！'), 'success')
         return redirect(url_for('dashboard'))
 
@@ -534,6 +567,9 @@ def admin_add_user():
     user.auto_absent_days = auto_absent
     db.session.add(user)
     db.session.commit()
+    security.audit('user.add', user=g.current_user,
+                   target_type='user', target_id=user.id,
+                   detail={'email': email, 'role': role})
     flash(msg(f'User added. Temp password: {temp_pw}',
               f'ユーザーを追加しました。一時パスワード: {temp_pw}'), 'success')
     return redirect(url_for('admin_users'))
@@ -602,6 +638,9 @@ def admin_reset_password(uid):
     user.failed_login_attempts = 0
     user.locked_until = None
     db.session.commit()
+    security.audit('user.password_reset', user=g.current_user,
+                   target_type='user', target_id=user.id,
+                   detail={'reset_target': user.email})
     flash(msg(f'Password reset. Temp password: {temp_pw}',
               f'パスワードをリセットしました。一時パスワード: {temp_pw}'), 'success')
     return redirect(url_for('admin_users'))
@@ -1333,17 +1372,22 @@ def _user_dict(u):
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 @app.route('/api/v1/auth/login', methods=['POST'])
+@limiter.limit('10 per minute')
 def api_login():
     data = request.get_json() or {}
     email = data.get('email', '').strip().lower()
     password = data.get('password', '')
     user = User.query.filter_by(email=email, is_active=True).first()
     if user and user.is_locked():
+        security.audit('login.locked', user=user, detail={'channel': 'api'})
+        security.notify_login(user, success=False, reason='アカウントロック中 (API)')
         return jsonify({'error': 'Account locked'}), 423
     if user and user.check_password(password):
         user.failed_login_attempts = 0
         user.locked_until = None
         db.session.commit()
+        security.audit('login.success', user=user, detail={'channel': 'api'})
+        security.notify_login(user, success=True)
         return jsonify({
             'access_token':  create_access_token(identity=str(user.id)),
             'refresh_token': create_refresh_token(identity=str(user.id)),
@@ -1354,6 +1398,10 @@ def api_login():
         if user.failed_login_attempts >= MAX_ATTEMPTS:
             user.locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_MINUTES)
         db.session.commit()
+        security.audit('login.fail', user=user, detail={'channel': 'api'})
+        security.notify_login(user, success=False, reason='パスワード間違い (API)')
+    else:
+        security.audit('login.unknown_email', detail={'email': email, 'channel': 'api'})
     return jsonify({'error': 'Invalid credentials'}), 401
 
 
@@ -1378,11 +1426,13 @@ def api_change_password():
     if not user.check_password(data.get('current_password', '')):
         return jsonify({'error': 'Wrong current password'}), 400
     new_pw = data.get('new_password', '')
-    if len(new_pw) < 8:
-        return jsonify({'error': 'Password too short'}), 400
+    err = security.check_password_strength(new_pw, user_email=user.email)
+    if err:
+        return jsonify({'error': err}), 400
     user.set_password(new_pw)
     user.must_change_password = False
     db.session.commit()
+    security.audit('password.change', user=user, detail={'channel': 'api'})
     return jsonify({'ok': True})
 
 
@@ -1398,8 +1448,9 @@ def api_onboarding():
     user = g.jwt_user
 
     new_pw = data.get('new_password', '')
-    if len(new_pw) < 8:
-        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+    err = security.check_password_strength(new_pw, user_email=user.email)
+    if err:
+        return jsonify({'error': err}), 400
 
     # current_password は強制変更状態なら省略可、通常変更なら必須
     if not user.must_change_password:
@@ -1434,6 +1485,7 @@ def api_onboarding():
         user.discord_id = d_in if d_in.isdigit() else (None if not d_in else user.discord_id)
 
     db.session.commit()
+    security.audit('onboarding.complete', user=user, detail={'channel': 'api'})
     return jsonify({'ok': True, 'user': _user_dict(user)})
 
 # ── Events ─────────────────────────────────────────────────────────────────────
@@ -1844,6 +1896,24 @@ def api_v1_stats():
             'rate': round(attended / total, 3) if total else 0.0,
         })
     return jsonify({'total_events': total, 'users': result})
+
+
+# ── Audit log (admin) ─────────────────────────────────────────────────────────
+
+@app.route('/admin/audit')
+@login_required('admin')
+def admin_audit():
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 50
+    q = AuditLog.query.order_by(AuditLog.created_at.desc())
+    action_f = request.args.get('action', '').strip()
+    if action_f:
+        q = q.filter(AuditLog.action.like(f'{action_f}%'))
+    total = q.count()
+    logs = q.offset((page - 1) * per_page).limit(per_page).all()
+    return render_template('admin/audit.html',
+                           logs=logs, page=page, per_page=per_page, total=total,
+                           action_filter=action_f)
 
 
 # ── App Version (OTA) ─────────────────────────────────────────────────────────

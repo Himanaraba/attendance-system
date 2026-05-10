@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}{{ msg('Audit Log','監査ログ') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4><i class="bi bi-shield-check"></i> {{ msg('Audit Log','監査ログ') }}</h4>
+  <span class="text-muted small">{{ total }} {{ msg('entries','件') }}</span>
+</div>
+
+<form method="get" class="mb-3">
+  <div class="input-group input-group-sm">
+    <input type="text" name="action" class="form-control" value="{{ action_filter }}"
+           placeholder="action prefix (例: login, password, user)">
+    <button class="btn btn-outline-primary"><i class="bi bi-search"></i></button>
+    {% if action_filter %}
+    <a href="{{ url_for('admin_audit') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-x"></i>
+    </a>
+    {% endif %}
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-sm table-hover small">
+    <thead class="table-light">
+      <tr>
+        <th>{{ msg('Time','日時') }}</th>
+        <th>{{ msg('Action','アクション') }}</th>
+        <th>{{ msg('User','ユーザー') }}</th>
+        <th>{{ msg('IP','IP') }}</th>
+        <th>{{ msg('Target','対象') }}</th>
+        <th>{{ msg('Detail','詳細') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td class="text-muted">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        <td>
+          {% if 'fail' in log.action or 'locked' in log.action %}
+            <span class="badge bg-danger">{{ log.action }}</span>
+          {% elif 'success' in log.action %}
+            <span class="badge bg-success">{{ log.action }}</span>
+          {% elif 'change' in log.action or 'update' in log.action %}
+            <span class="badge bg-warning text-dark">{{ log.action }}</span>
+          {% else %}
+            <code>{{ log.action }}</code>
+          {% endif %}
+        </td>
+        <td>{{ log.user.name if log.user else '-' }}</td>
+        <td><code class="small">{{ log.ip or '-' }}</code></td>
+        <td>
+          {% if log.target_type %}
+            {{ log.target_type }}#{{ log.target_id or '?' }}
+          {% else %}-{% endif %}
+        </td>
+        <td class="small text-muted" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis;"
+            title="{{ log.detail or '' }}">{{ log.detail or '' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-muted py-3">
+        {{ msg('No logs','ログなし') }}
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if total > per_page %}
+{% set last_page = (total + per_page - 1) // per_page %}
+<nav>
+  <ul class="pagination pagination-sm justify-content-center">
+    {% if page > 1 %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page - 1 }}{% if action_filter %}&action={{ action_filter }}{% endif %}">«</a>
+    </li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">{{ page }} / {{ last_page }}</span></li>
+    {% if page < last_page %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page + 1 }}{% if action_filter %}&action={{ action_filter }}{% endif %}">»</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

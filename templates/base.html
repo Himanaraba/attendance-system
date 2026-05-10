@@ -48,6 +48,11 @@
             <li><a class="dropdown-item" href="{{ url_for('admin_templates') }}">
               <i class="bi bi-layout-text-sidebar-reverse"></i> {{ msg('Templates','テンプレート') }}
             </a></li>
+            {% if current_user.role == 'admin' %}
+            <li><a class="dropdown-item" href="{{ url_for('admin_audit') }}">
+              <i class="bi bi-shield-check"></i> {{ msg('Audit Log','監査ログ') }}
+            </a></li>
+            {% endif %}
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{{ url_for('admin_export_summary') }}">
               <i class="bi bi-download"></i> {{ msg('Export Summary','サマリCSV') }}
