@@ -21,6 +21,7 @@ from flask_jwt_extended import (
 )
 from sqlalchemy import text
 from models import db, User, Event, Attendance, WeeklyTemplate
+import discord_service
 
 # ── App & Config ───────────────────────────────────────────────────────────────
 
@@ -59,6 +60,8 @@ LOCKOUT_MINUTES = int(os.environ.get('LOCKOUT_MINUTES', '30'))
 
 VALID_POSITIONS = {'tech', 'ops', 'teacher'}
 VALID_ROLES = {'user', 'manager', 'admin'}
+GRADE_OPTIONS = ['M1', 'M2', 'M3', 'H1', 'H2', 'H3', 'H4', 'OB']
+VALID_GRADES = set(GRADE_OPTIONS)
 ROLE_LEVEL = {'user': 1, 'manager': 2, 'admin': 3}
 STATUS_LABEL_JA = {'present': '出席', 'absent': '欠席', 'partial': '部分参加'}
 DAY_NAMES_JA = ['月', '火', '水', '木', '金', '土', '日']
@@ -145,6 +148,17 @@ def apply_migrations():
     # weekly_templates.is_auto が存在しない古いDBに対して追加
     _safe_add_column('weekly_templates', 'is_auto', 'BOOLEAN DEFAULT 0')
     _safe_add_column('events', 'description', 'TEXT DEFAULT ""')
+    _safe_add_column('users', 'discord_id', 'VARCHAR(32)')
+    _safe_add_column('users', 'birthday', 'DATE')
+    # 既存の整数 grade を NULL にクリア (運用者が新形式 M1〜OB で再設定)
+    try:
+        db.session.execute(text(
+            "UPDATE users SET grade = NULL WHERE grade IS NOT NULL "
+            "AND grade NOT IN ('M1','M2','M3','H1','H2','H3','H4','OB')"
+        ))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 def _safe_add_column(table, column, col_def):
@@ -232,7 +246,7 @@ def login():
             session.permanent = True
             session['user_id'] = user.id
             if user.must_change_password:
-                return redirect(url_for('change_password'))
+                return redirect(url_for('onboarding'))
             dest = next_url if (next_url and safe_redirect(next_url)) else url_for('dashboard')
             return redirect(dest)
         else:
@@ -286,6 +300,57 @@ def change_password():
             return redirect(url_for('dashboard'))
 
     return render_template('change_password.html')
+
+
+@app.route('/onboarding', methods=['GET', 'POST'])
+@login_required()
+def onboarding():
+    """初回ログイン用セットアップ。パスワード設定+プロフィール入力。"""
+    user = g.current_user
+    # 既に必須項目をクリアしている場合はダッシュボードへ
+    if not user.must_change_password and request.method == 'GET':
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        validate_csrf()
+        new_pw     = request.form.get('new_password', '')
+        confirm_pw = request.form.get('confirm_password', '')
+        if len(new_pw) < 8:
+            flash(msg('Password must be at least 8 characters.',
+                      'パスワードは8文字以上にしてください。'), 'danger')
+            return redirect(url_for('onboarding'))
+        if new_pw != confirm_pw:
+            flash(msg('Passwords do not match.',
+                      'パスワードが一致しません。'), 'danger')
+            return redirect(url_for('onboarding'))
+
+        user.set_password(new_pw)
+        user.must_change_password = False
+
+        # 任意プロフィール
+        g_in = request.form.get('grade', '').strip() or None
+        if g_in is None or g_in in VALID_GRADES:
+            user.grade = g_in
+        b_in = request.form.get('birthday', '').strip()
+        if b_in:
+            try:
+                user.birthday = datetime.strptime(b_in, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        else:
+            user.birthday = None
+        user.positions = [p for p in request.form.getlist('positions') if p in VALID_POSITIONS]
+        d_in = request.form.get('discord_id', '').strip()
+        if not d_in:
+            user.discord_id = None
+        elif d_in.isdigit():
+            user.discord_id = d_in
+
+        db.session.commit()
+        flash(msg('Setup complete. Welcome!', 'セットアップ完了。ようこそ！'), 'success')
+        return redirect(url_for('dashboard'))
+
+    return render_template('onboarding.html')
 
 
 @app.route('/toggle_lang')
@@ -443,7 +508,8 @@ def admin_add_user():
     validate_csrf()
     email = request.form.get('email', '').strip().lower()
     name = request.form.get('name', '').strip()
-    grade = request.form.get('grade', type=int)
+    grade = request.form.get('grade', '').strip() or None
+    if grade and grade not in VALID_GRADES: grade = None
     user_class = request.form.get('user_class', '').strip()
     role = request.form.get('role', 'user')
     positions = [p for p in request.form.getlist('positions') if p in VALID_POSITIONS]
@@ -459,8 +525,10 @@ def admin_add_user():
         role = 'user'
 
     temp_pw = secrets.token_urlsafe(12)
+    discord_id = request.form.get('discord_id', '').strip() or None
+    if discord_id and not discord_id.isdigit(): discord_id = None
     user = User(email=email, name=name, grade=grade, user_class=user_class,
-                role=role, must_change_password=True)
+                role=role, discord_id=discord_id, must_change_password=True)
     user.set_password(temp_pw)
     user.positions = positions
     user.auto_absent_days = auto_absent
@@ -489,7 +557,8 @@ def admin_edit_user(uid):
 
     user.email = email
     user.name = request.form.get('name', '').strip()
-    user.grade = request.form.get('grade', type=int)
+    g_in = request.form.get('grade', '').strip() or None
+    user.grade = g_in if (g_in is None or g_in in VALID_GRADES) else None
     user.user_class = request.form.get('user_class', '').strip()
     role = request.form.get('role', 'user')
     if role in VALID_ROLES:
@@ -497,6 +566,8 @@ def admin_edit_user(uid):
     user.positions = [p for p in request.form.getlist('positions') if p in VALID_POSITIONS]
     user.auto_absent_days = [int(d) for d in request.form.getlist('auto_absent_days')
                              if d.isdigit()]
+    discord_id = request.form.get('discord_id', '').strip() or None
+    user.discord_id = discord_id if (discord_id is None or discord_id.isdigit()) else user.discord_id
     db.session.commit()
     flash(msg('User updated.', 'ユーザーを更新しました。'), 'success')
     return redirect(url_for('admin_users'))
@@ -565,8 +636,10 @@ def admin_add_event():
         flash(msg('Start must be before end.', '開始時刻は終了時刻より前にしてください。'), 'danger')
         return redirect(url_for('admin_events'))
 
-    db.session.add(Event(title=title, date=d, start_time=st, end_time=et))
+    ev = Event(title=title, date=d, start_time=st, end_time=et)
+    db.session.add(ev)
     db.session.commit()
+    discord_service.notify_event_added(ev)
     flash(msg('Event added.', '活動を追加しました。'), 'success')
     return redirect(url_for('admin_events'))
 
@@ -596,6 +669,7 @@ def admin_edit_event(eid):
 
     event.title, event.date, event.start_time, event.end_time = title, d, st, et
     db.session.commit()
+    discord_service.notify_event_updated(event)
     flash(msg('Event updated.', '活動を更新しました。'), 'success')
     return redirect(url_for('admin_events'))
 
@@ -607,8 +681,11 @@ def admin_delete_event(eid):
     event = db.session.get(Event, eid)
     if not event:
         abort(404)
+    title_snap = event.title
+    date_snap  = event.date.isoformat()
     db.session.delete(event)
     db.session.commit()
+    discord_service.notify_event_deleted(title_snap, date_snap)
     flash(msg('Event deleted.', '活動を削除しました。'), 'success')
     return redirect(url_for('admin_events'))
 
@@ -1248,6 +1325,8 @@ def _user_dict(u):
             'grade': u.grade, 'user_class': u.user_class,
             'role': u.role, 'positions': u.positions,
             'auto_absent_days': u.auto_absent_days,
+            'discord_id': u.discord_id,
+            'birthday': u.birthday.isoformat() if u.birthday else None,
             'must_change_password': u.must_change_password}
 
 
@@ -1305,6 +1384,57 @@ def api_change_password():
     user.must_change_password = False
     db.session.commit()
     return jsonify({'ok': True})
+
+
+@app.route('/api/v1/auth/onboarding', methods=['POST'])
+@jwt_role()
+def api_onboarding():
+    """初回ログイン時のセットアップ。
+    - 新パスワード(必須)
+    - 学年 / 班 / 誕生日 / Discord ID (任意)
+    完了すると must_change_password=False に。
+    """
+    data = request.get_json() or {}
+    user = g.jwt_user
+
+    new_pw = data.get('new_password', '')
+    if len(new_pw) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+
+    # current_password は強制変更状態なら省略可、通常変更なら必須
+    if not user.must_change_password:
+        if not user.check_password(data.get('current_password', '')):
+            return jsonify({'error': 'Wrong current password'}), 400
+
+    user.set_password(new_pw)
+    user.must_change_password = False
+
+    # 任意項目
+    if 'grade' in data:
+        g_in = (data.get('grade') or '').strip() if isinstance(data.get('grade'), str) else None
+        user.grade = g_in if g_in in VALID_GRADES else None
+
+    if 'positions' in data:
+        positions = data.get('positions') or []
+        if isinstance(positions, list):
+            user.positions = [p for p in positions if p in VALID_POSITIONS]
+
+    if 'birthday' in data:
+        b = data.get('birthday')
+        if not b:
+            user.birthday = None
+        else:
+            try:
+                user.birthday = datetime.strptime(str(b), '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Invalid birthday format (YYYY-MM-DD)'}), 400
+
+    if 'discord_id' in data:
+        d_in = (data.get('discord_id') or '').strip() if isinstance(data.get('discord_id'), str) else ''
+        user.discord_id = d_in if d_in.isdigit() else (None if not d_in else user.discord_id)
+
+    db.session.commit()
+    return jsonify({'ok': True, 'user': _user_dict(user)})
 
 # ── Events ─────────────────────────────────────────────────────────────────────
 
@@ -1371,6 +1501,7 @@ def api_v1_add_event():
                date=d, start_time=st, end_time=et)
     db.session.add(ev)
     db.session.commit()
+    discord_service.notify_event_added(ev)
     return jsonify(ev.to_dict()), 201
 
 
@@ -1391,6 +1522,7 @@ def api_v1_edit_event(eid):
     if ev.start_time >= ev.end_time:
         return jsonify({'error': 'Start must be before end'}), 400
     db.session.commit()
+    discord_service.notify_event_updated(ev)
     return jsonify(ev.to_dict())
 
 
@@ -1399,8 +1531,11 @@ def api_v1_edit_event(eid):
 def api_v1_delete_event(eid):
     ev = db.session.get(Event, eid)
     if not ev: return jsonify({'error': 'Not found'}), 404
+    title_snap = ev.title
+    date_snap  = ev.date.isoformat()
     db.session.delete(ev)
     db.session.commit()
+    discord_service.notify_event_deleted(title_snap, date_snap)
     return jsonify({'ok': True})
 
 # ── Attendance ─────────────────────────────────────────────────────────────────
@@ -1528,8 +1663,10 @@ def api_v1_add_user():
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'Email already in use'}), 409
     temp_pw = secrets.token_urlsafe(12)
+    g_in = (data.get('grade') or '').strip() if isinstance(data.get('grade'), str) else None
     u = User(email=email, name=data.get('name', '').strip(),
-             grade=data.get('grade'), user_class=data.get('user_class', ''),
+             grade=g_in if g_in in VALID_GRADES else None,
+             user_class=data.get('user_class', ''),
              role=data.get('role', 'user') if data.get('role') in VALID_ROLES else 'user',
              must_change_password=True)
     u.set_password(temp_pw)
@@ -1553,7 +1690,13 @@ def api_v1_edit_user(uid):
             return jsonify({'error': 'Email already in use'}), 409
         u.email = email
     if 'name'             in data: u.name       = data['name'].strip()
-    if 'grade'            in data: u.grade      = data.get('grade')
+    if 'grade' in data:
+        g_in = data.get('grade')
+        if g_in is None or g_in == '':
+            u.grade = None
+        elif isinstance(g_in, str) and g_in.strip() in VALID_GRADES:
+            u.grade = g_in.strip()
+        # それ以外は無視 (不正値)
     if 'user_class'       in data: u.user_class = data.get('user_class', '')
     if 'role'             in data and data['role'] in VALID_ROLES: u.role = data['role']
     if 'positions'        in data: u.positions       = [p for p in data['positions'] if p in VALID_POSITIONS]
@@ -1751,6 +1894,46 @@ def init_db():
     """Initialize the database."""
     db.create_all()
     click.echo('Database initialized.')
+
+
+@app.cli.command('sync_discord_roles')
+@click.option('--dry-run', is_flag=True, help='実行せず結果だけ表示')
+def sync_discord_roles(dry_run):
+    """全ユーザの出席率に応じて Discord ロールを更新 (cron向け)。
+
+    使用例 (Coolify Scheduled Task など):
+      flask sync_discord_roles
+      flask sync_discord_roles --dry-run
+    """
+    if not discord_service.is_bot_enabled():
+        click.echo('[skip] Bot disabled (DISCORD_BOT_TOKEN/DISCORD_GUILD_ID 未設定)')
+        return
+    total = Event.query.count()
+    if total == 0:
+        click.echo('[skip] No events yet — nothing to score')
+        return
+
+    users = User.query.filter(
+        User.is_active == True,
+        User.discord_id.isnot(None)
+    ).all()
+    if not users:
+        click.echo('[skip] No users with discord_id')
+        return
+
+    click.echo(f'Syncing roles for {len(users)} users (total events: {total})')
+    for u in users:
+        c_present = sum(1 for a in u.attendances if a.status == 'present')
+        c_partial = sum(1 for a in u.attendances if a.status == 'partial')
+        rate = (c_present + c_partial) / total if total else 0.0
+        tier = 'HIGH' if rate >= 0.8 else ('MID' if rate >= 0.6 else 'LOW')
+        if dry_run:
+            click.echo(f'  [dry] {u.name} ({u.discord_id}): {rate*100:.1f}% → {tier}')
+        else:
+            ok, msg_ = discord_service.sync_attendance_roles(rate, u.discord_id)
+            mark = '✓' if ok else '✗'
+            click.echo(f'  {mark} {u.name} ({u.discord_id}): {rate*100:.1f}% → {tier} ({msg_})')
+    click.echo('Done.')
 
 
 @app.cli.command('create_admin')
