@@ -5,4 +5,4 @@ Flask-Cors>=4.0.0
 Flask-Limiter>=3.5.0
 Werkzeug>=3.0.1
 click>=8.1.7
-gunicorn>=21.2.0
+gunicorn>=26.0.0
