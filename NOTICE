@@ -1,0 +1,12 @@
+Attendance Management System
+Copyright 2026 賀屋悠 (kayaharuka@hotmail.com)
+
+This product includes software developed by:
+- The Pallets Projects (Flask, Werkzeug) — BSD-3-Clause
+- The SQLAlchemy authors — MIT
+- Flask-JWT-Extended — MIT
+- Flask-Cors — MIT
+- gunicorn — MIT
+
+See requirements.txt for the full dependency list. Each dependency is
+licensed under its own terms; refer to the upstream projects.
