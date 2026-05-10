@@ -1,7 +1,7 @@
 {
-  "released_at": "2026-05-10T17:37:58Z",
-  "latest_version": "1.3.1",
-  "release_notes": "プロフィール画面下部にバージョン表示を追加",
   "min_supported_version": "1.2.1",
-  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.3.1/app-release.apk"
+  "latest_version": "1.4.0",
+  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.4.0/app-release.apk",
+  "release_notes": "UI大幅刷新 / ホームから1タップ出欠登録 / カレンダー出欠色ドット / タイムピッカー / ユーザー検索+班フィルタ / 丸めデザイン",
+  "released_at": "2026-05-10T19:21:27Z"
 }
