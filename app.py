@@ -1703,6 +1703,21 @@ def api_v1_stats():
     return jsonify({'total_events': total, 'users': result})
 
 
+# ── App Version (OTA) ─────────────────────────────────────────────────────────
+
+@app.route('/api/v1/app/latest')
+def api_app_latest():
+    """モバイルアプリの最新バージョン情報を返す (認証不要 - 起動時チェック用)"""
+    path = os.path.join(os.path.dirname(__file__), 'app_version.json')
+    if not os.path.exists(path):
+        return jsonify({'error': 'Version file missing'}), 404
+    try:
+        with open(path, encoding='utf-8') as f:
+            return jsonify(json.load(f))
+    except Exception as e:
+        return jsonify({'error': f'Invalid version file: {e}'}), 500
+
+
 # ── Guide ──────────────────────────────────────────────────────────────────────
 
 @app.route('/guide')
