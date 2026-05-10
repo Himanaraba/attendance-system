@@ -1,7 +1,7 @@
 {
-  "latest_version": "1.2.1",
-  "released_at": "2026-05-10T16:43:07Z",
-  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.2.1/app-release.apk",
+  "latest_version": "1.2.2",
+  "released_at": "2026-05-10T16:51:26Z",
   "min_supported_version": "1.2.1",
-  "release_notes": "OTAダウンロード処理修正"
+  "release_notes": "OTAダウンロード処理修正・詳細エラー表示スイッチ追加(プロフィール→詳細設定)",
+  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.2.2/app-release.apk"
 }
