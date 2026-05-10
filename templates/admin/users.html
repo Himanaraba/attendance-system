@@ -65,7 +65,7 @@
             </td>
             <td class="small text-muted">{{ u.email }}</td>
             <td class="small">
-              {% if u.grade %}{{ u.grade }}年{% endif %}
+              {% if u.grade %}{{ u.grade }}{% endif %}
               {% if u.user_class %} {{ u.user_class }}{% endif %}
             </td>
             <td>
@@ -85,7 +85,7 @@
                 {% if current_user.role == 'admin' %}
                 <button class="btn btn-outline-primary" title="{{ msg('Edit','編集') }}"
                   onclick="openEditModal({{ u.id }}, '{{ u.email }}', '{{ u.name }}',
-                    {{ u.grade or 'null' }}, '{{ u.user_class or '' }}',
+                    '{{ u.grade or '' }}', '{{ u.user_class or '' }}',
                     '{{ u.role }}', {{ u.positions|tojson }}, {{ u.auto_absent_days|tojson }})">
                   <i class="bi bi-pencil-fill"></i>
                 </button>

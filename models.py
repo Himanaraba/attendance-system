@@ -11,7 +11,7 @@ class User(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    grade = db.Column(db.Integer, nullable=True)
+    grade = db.Column(db.String(10), nullable=True)  # M1〜M3, H1〜H4, OB
     user_class = db.Column(db.String(20), nullable=True)
     role = db.Column(db.String(20), default='user')  # user / manager / admin
     _positions = db.Column('positions', db.Text, default='[]')
@@ -20,6 +20,8 @@ class User(db.Model):
     failed_login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    discord_id = db.Column(db.String(32), nullable=True)  # Discord User ID (snowflake)
+    birthday = db.Column(db.Date, nullable=True)  # 任意・誕生日通知などに使用
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     attendances = db.relationship('Attendance', backref='user', lazy=True,

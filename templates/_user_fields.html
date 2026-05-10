@@ -10,11 +10,23 @@
   </div>
   <div class="col-md-3">
     <label class="form-label fw-semibold">{{ msg('Grade','学年') }}</label>
-    <input type="number" name="grade" class="form-control" min="1" max="6">
+    <select name="grade" class="form-select">
+      <option value="">{{ msg('(none)', '(未設定)') }}</option>
+      {% for g in ['M1','M2','M3','H1','H2','H3','H4','OB'] %}
+      <option value="{{ g }}">{{ g }}</option>
+      {% endfor %}
+    </select>
   </div>
   <div class="col-md-3">
     <label class="form-label fw-semibold">{{ msg('Class','クラス') }}</label>
     <input type="text" name="user_class" class="form-control" maxlength="20">
+  </div>
+  <div class="col-md-12">
+    <label class="form-label fw-semibold">{{ msg('Discord User ID','Discord ID') }}
+      <small class="text-muted">{{ msg('(optional, for role sync)','(任意・ロール連携用)') }}</small>
+    </label>
+    <input type="text" name="discord_id" class="form-control" maxlength="32"
+           pattern="[0-9]*" placeholder="例: 123456789012345678">
   </div>
   <div class="col-md-6">
     <label class="form-label fw-semibold">{{ msg('Role','ロール') }}</label>

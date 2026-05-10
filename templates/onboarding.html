@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}{{ msg('Welcome — Initial Setup','ようこそ — 初回セットアップ') }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card shadow">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+          <i class="bi bi-rocket-takeoff-fill"></i>
+          {{ msg('Welcome — Initial Setup','ようこそ — 初回セットアップ') }}
+        </h5>
+      </div>
+      <div class="card-body p-4">
+        <p class="text-muted small">
+          {{ msg('Set your password and tell us about yourself. You can update these later in your profile.',
+                 'パスワードを設定し、プロフィール情報を入力してください。後からプロフィール画面で変更可能です。') }}
+        </p>
+
+        <form method="post">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+          <h6 class="text-muted small mt-3 mb-2">
+            <i class="bi bi-key-fill"></i> {{ msg('Password','パスワード') }} <span class="text-danger">*</span>
+          </h6>
+
+          <div class="mb-3">
+            <label class="form-label small">{{ msg('New Password','新しいパスワード') }}</label>
+            <input type="password" name="new_password" id="newPw" class="form-control" required
+                   minlength="8" autocomplete="new-password">
+            <div class="form-text small">{{ msg('Minimum 8 characters','8文字以上') }}</div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label small">{{ msg('Confirm New Password','確認') }}</label>
+            <input type="password" name="confirm_password" id="confirmPw" class="form-control"
+                   required autocomplete="new-password">
+            <div id="matchFeedback" class="form-text text-danger d-none small">
+              {{ msg('Passwords do not match','パスワードが一致しません') }}
+            </div>
+          </div>
+
+          <h6 class="text-muted small mt-4 mb-2">
+            <i class="bi bi-person-fill"></i> {{ msg('Profile (optional)','プロフィール (任意)') }}
+          </h6>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small">{{ msg('Grade','学年') }}</label>
+              <select name="grade" class="form-select">
+                <option value="">{{ msg('(none)','(未設定)') }}</option>
+                {% for g in ['M1','M2','M3','H1','H2','H3','H4','OB'] %}
+                <option value="{{ g }}" {% if current_user.grade == g %}selected{% endif %}>{{ g }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">{{ msg('Birthday','誕生日') }}</label>
+              <input type="date" name="birthday" class="form-control"
+                     value="{{ current_user.birthday.isoformat() if current_user.birthday else '' }}">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small">{{ msg('Team','班') }}</label>
+            <div class="d-flex gap-3 flex-wrap">
+              {% for pos, label in [('tech','技術班'),('ops','運営班'),('teacher','顧問')] %}
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="positions" value="{{ pos }}"
+                       id="onb_pos_{{ pos }}"
+                       {% if pos in current_user.positions %}checked{% endif %}>
+                <label class="form-check-label fw-semibold text-{{ POSITION_COLORS[pos] }}"
+                       for="onb_pos_{{ pos }}">
+                  <i class="bi bi-people-fill"></i> {{ label }}
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label small">
+              {{ msg('Discord User ID','Discord ID') }}
+              <span class="text-muted">{{ msg('(optional, for role sync)','(任意・ロール連携用)') }}</span>
+            </label>
+            <input type="text" name="discord_id" class="form-control" maxlength="32" pattern="[0-9]*"
+                   placeholder="例: 123456789012345678"
+                   value="{{ current_user.discord_id or '' }}">
+            <div class="form-text small">
+              {{ msg('Discord → Settings → Advanced → Developer Mode → Right-click your name → Copy User ID',
+                     'Discord → 設定 → 詳細設定 → 開発者モード ON → 自分の名前を右クリック → ユーザーIDをコピー') }}
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary fw-bold">
+              <i class="bi bi-check-lg"></i> {{ msg('Save and Continue','保存して開始') }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('confirmPw').addEventListener('input', function() {
+  const match = this.value === document.getElementById('newPw').value;
+  document.getElementById('matchFeedback').classList.toggle('d-none', match);
+});
+</script>
+{% endblock %}

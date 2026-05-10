@@ -76,7 +76,7 @@
                 </span>
                 {% endfor %}
               </div>
-              {% if u.grade %}<div class="text-muted" style="font-size:.7rem">{{ u.grade }}年{{ u.user_class or '' }}</div>{% endif %}
+              {% if u.grade %}<div class="text-muted" style="font-size:.7rem">{{ u.grade }}{{ u.user_class or '' }}</div>{% endif %}
             </td>
             {% for ev in events %}
             {% set att = att_map.get((u.id, ev.id)) %}
