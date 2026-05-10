@@ -1,7 +1,7 @@
 {
+  "release_notes": "プロフィールに「アップデートを確認」ボタンを追加",
   "min_supported_version": "1.2.1",
-  "release_notes": "GlassAppBar 撤去 (上の白曇り解消) / GlassBottomBar とブロブ背景は維持",
-  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.5.3/app-release.apk",
-  "released_at": "2026-05-10T19:52:55Z",
-  "latest_version": "1.5.3"
+  "released_at": "2026-05-10T19:56:49Z",
+  "latest_version": "1.5.4",
+  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.5.4/app-release.apk"
 }
