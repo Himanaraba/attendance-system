@@ -1,7 +1,7 @@
 {
-  "release_notes": "iOS 26風 Liquid Glass デザイン採用 (GlassBottomBar / GlassAppBar)",
+  "latest_version": "1.5.1",
+  "release_notes": "Liquid Glass 透明感アップ・AppBar下のレイアウト修正",
   "min_supported_version": "1.2.1",
-  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.5.0/app-release.apk",
-  "released_at": "2026-05-10T19:31:05Z",
-  "latest_version": "1.5.0"
+  "download_url": "https://github.com/Himanaraba/attendance-app/releases/download/v1.5.1/app-release.apk",
+  "released_at": "2026-05-10T19:39:54Z"
 }
